@@ -1,4 +1,4 @@
-﻿using Microsoft.CognitiveServices.Speech;
+using Microsoft.CognitiveServices.Speech;
 using Microsoft.CognitiveServices.Speech.Audio;
 using Microsoft.CognitiveServices.Speech.Translation;
 using Translator.Models.Configs;
@@ -27,6 +27,7 @@ namespace Translator.Service
             speechConfig.SpeechRecognitionLanguage = fromLang;
             // Add the target languages you want to translate to
             speechConfig.AddTargetLanguage(toLang);
+            speechConfig.SetProperty(PropertyId.Speech_SegmentationSilenceTimeoutMs, "200");
             return speechConfig;
         }
 

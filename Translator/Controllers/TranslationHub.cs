@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.Hosting.Server;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using SoundFlow.Abstracts.Devices;
 using SoundFlow.Backends.MiniAudio;
@@ -8,7 +6,6 @@ using SoundFlow.Enums;
 using SoundFlow.Providers;
 using SoundFlow.Structs;
 using System.Collections.Concurrent;
-using System.Threading.Channels;
 using Translator.Service;
 
 namespace Translator.Controllers
