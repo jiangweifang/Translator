@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
+using SoundFlow.Abstracts.Devices;
 using SoundFlow.Backends.MiniAudio;
 using SoundFlow.Components;
 using SoundFlow.Enums;
@@ -22,6 +23,7 @@ namespace Translator.Controllers
         private DeviceInfo? _device;
         private readonly ConcurrentQueue<byte[]> _audioQueue;
         private readonly ILogger<TranslationHub> _logger;
+        private AudioPlaybackDevice? _playbackDevice;
 
         public TranslationHub(IMemoryCache cache, ILogger<TranslationHub> logger, SynthesizerService synthesizer, TranslationService translation)
         {
@@ -42,6 +44,8 @@ namespace Translator.Controllers
         public Task StartAsync(CancellationToken cancellationToken)
         {
             _device = _engine.PlaybackDevices.FirstOrDefault(x => x.IsDefault);
+            _playbackDevice = _engine.InitializePlaybackDevice(_device, _audioFormat);
+            _playbackDevice.Start();
             _ = Task.Run(() => ProcessQueueAsync(cancellationToken));
             return Task.CompletedTask;
         }
@@ -82,9 +86,16 @@ namespace Translator.Controllers
                 if (_audioQueue.TryDequeue(out byte[]? audio))
                 {
                     if (audio == null) continue;
-
                     using var dataProvider = new RawDataProvider(audio, SampleFormat.S16, 16000, 1);
                     using var soundPlayer = new SoundPlayer(_engine, _audioFormat, dataProvider);
+                    _playbackDevice!.MasterMixer.AddComponent(soundPlayer);
+                    soundPlayer.Play();
+                    while (soundPlayer.State == PlaybackState.Playing)
+                    {
+                        Thread.Sleep(100);
+                    }
+                    _playbackDevice!.MasterMixer.RemoveComponent(soundPlayer);
+
                     _logger.LogInformation("播放音频（队列消费）");
                 }
                 else
