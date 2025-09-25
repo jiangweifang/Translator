@@ -10,7 +10,6 @@ namespace Translator.Service
         private readonly AiSpeechConfig _config;
         private readonly ILogger<SynthesizerService> _logger;
         private readonly ConcurrentQueue<string> _textQueue;
-        private SpeechConfig? _speechConfig;
         private CancellationTokenSource? _cts;
         private SpeechSynthesizer? _synthesizer;
         private Connection? _connection;
@@ -22,23 +21,19 @@ namespace Translator.Service
             _textQueue = new();
         }
 
-        public void Initialize(string toLang, string voiceName = "")
+        public SpeechConfig Initialize(string toLang, string voiceName = "")
         {
-            _speechConfig = SpeechConfig.FromSubscription(_config.SubscriptionKey, _config.Region);
-            _speechConfig.SetSpeechSynthesisOutputFormat(SpeechSynthesisOutputFormat.Raw16Khz16BitMonoPcm);
-            _speechConfig.SpeechSynthesisLanguage = toLang;
-            _speechConfig.SpeechSynthesisVoiceName = voiceName;
+            SpeechConfig speechConfig = SpeechConfig.FromSubscription(_config.SubscriptionKey, _config.Region);
+            speechConfig.SetSpeechSynthesisOutputFormat(SpeechSynthesisOutputFormat.Raw16Khz16BitMonoPcm);
+            speechConfig.SpeechSynthesisLanguage = toLang;
+            speechConfig.SpeechSynthesisVoiceName = voiceName;
+            return speechConfig;
         }
 
-        public void Start()
+        public void Start(SpeechConfig speechConfig)
         {
-            if (_speechConfig is null)
-            {
-                throw new InvalidOperationException("SynthesizerService 没有初始化.");
-            }
-
             // 初始化 SDK synthesizer（不指定输出，让我们获取 AudioData）
-            _synthesizer = new SpeechSynthesizer(_speechConfig, null);
+            _synthesizer = new SpeechSynthesizer(speechConfig, null);
             _connection = Connection.FromSpeechSynthesizer(_synthesizer);
             _connection.Open(true);
 

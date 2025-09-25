@@ -10,7 +10,6 @@ namespace Translator.Service
         private readonly AiSpeechConfig _config;
         private readonly ILogger<TranslationService> _logger;
 
-        private SpeechTranslationConfig? _speechConfig;
         private TaskCompletionSource<int>? _stopTranslation;
 
         public event Action<string,string>? OnTranslationReceived;
@@ -20,20 +19,21 @@ namespace Translator.Service
             _config = config;
             _logger = logger;
         }
-        public void Initialize(string fromLang, string toLang)
+        public SpeechTranslationConfig Initialize(string fromLang, string toLang)
         {
             _stopTranslation = new();
-            _speechConfig = SpeechTranslationConfig.FromSubscription(_config.SubscriptionKey, _config.Region);
+            SpeechTranslationConfig speechConfig = SpeechTranslationConfig.FromSubscription(_config.SubscriptionKey, _config.Region);
             // Set the source language
-            _speechConfig.SpeechRecognitionLanguage = fromLang;
+            speechConfig.SpeechRecognitionLanguage = fromLang;
             // Add the target languages you want to translate to
-            _speechConfig.AddTargetLanguage(toLang);
+            speechConfig.AddTargetLanguage(toLang);
+            return speechConfig;
         }
 
-        public async Task StartAsync()
+        public async Task Start(SpeechTranslationConfig speechConfig)
         {
             using var audioInput = AudioConfig.FromDefaultMicrophoneInput();
-            using var translationRecognizer = new TranslationRecognizer(_speechConfig, audioInput);
+            using var translationRecognizer = new TranslationRecognizer(speechConfig, audioInput);
             // Subscribes to events.
             translationRecognizer.Recognizing += (s, e) =>
             {
