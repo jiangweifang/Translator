@@ -5,7 +5,10 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
-	<ItemGroup>
-		<PackageReference Include="Microsoft.CognitiveServices.Speech" Version="1.46.0" />
-	</ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CognitiveServices.Speech" Version="1.46.0" />
+    <PackageReference Include="SoundFlow" Version="1.2.1" />
+  </ItemGroup>
+
 </Project>

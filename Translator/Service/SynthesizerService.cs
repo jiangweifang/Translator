@@ -1,6 +1,7 @@
-﻿using Microsoft.CognitiveServices.Speech;
+using Microsoft.CognitiveServices.Speech;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
+using System.IO;
 using Translator.Models.Configs;
 
 namespace Translator.Service
@@ -13,6 +14,8 @@ namespace Translator.Service
         private CancellationTokenSource? _cts;
         private SpeechSynthesizer? _synthesizer;
         private Connection? _connection;
+
+        public event Action<MemoryStream>? OnAudioReceived;
 
         public SynthesizerService(AiSpeechConfig config, ILogger<SynthesizerService> logger)
         {
@@ -50,7 +53,7 @@ namespace Translator.Service
             {
                 if (_textQueue.TryDequeue(out string? text))
                 {
-                    if (text == null) continue;
+                    if (string.IsNullOrEmpty(text)) continue;
 
                     try
                     {
@@ -58,12 +61,21 @@ namespace Translator.Service
                         if (result.Reason == ResultReason.SynthesizingAudioCompleted)
                         {
                             using var audioDataStream = AudioDataStream.FromResult(result);
+                            // 读取音频数据并向上分发stream
+
                             byte[] buffer = new byte[16000];
-                            uint filledSize = 0;
-                            while ((filledSize = audioDataStream.ReadData(buffer)) > 0)
+                            uint bytesRead;
+                            using var memoryStream = new MemoryStream();
+
+                            while ((bytesRead = audioDataStream.ReadData(buffer)) > 0)
                             {
-                                Console.WriteLine($"{filledSize} bytes received.");
+                                memoryStream.Write(buffer, 0, (int)bytesRead);
                             }
+                            memoryStream.Position = 0;
+                            // 复制并触发，避免订阅方长期占用内部缓冲
+                            var payloadBytes = memoryStream.ToArray();
+                            var payload = new MemoryStream(payloadBytes, writable: false);
+                            OnAudioReceived?.Invoke(payload);
                         }
                         else if (result.Reason == ResultReason.Canceled)
                         {
