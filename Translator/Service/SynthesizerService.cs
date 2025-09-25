@@ -15,7 +15,7 @@ namespace Translator.Service
         private SpeechSynthesizer? _synthesizer;
         private Connection? _connection;
 
-        public event Action<MemoryStream>? OnAudioReceived;
+        public event Action<byte[]>? OnAudioReceived;
 
         public SynthesizerService(AiSpeechConfig config, ILogger<SynthesizerService> logger)
         {
@@ -60,22 +60,7 @@ namespace Translator.Service
                         var result = await _synthesizer!.SpeakTextAsync(text);
                         if (result.Reason == ResultReason.SynthesizingAudioCompleted)
                         {
-                            using var audioDataStream = AudioDataStream.FromResult(result);
-                            // 读取音频数据并向上分发stream
-
-                            byte[] buffer = new byte[16000];
-                            uint bytesRead;
-                            using var memoryStream = new MemoryStream();
-
-                            while ((bytesRead = audioDataStream.ReadData(buffer)) > 0)
-                            {
-                                memoryStream.Write(buffer, 0, (int)bytesRead);
-                            }
-                            memoryStream.Position = 0;
-                            // 复制并触发，避免订阅方长期占用内部缓冲
-                            var payloadBytes = memoryStream.ToArray();
-                            var payload = new MemoryStream(payloadBytes, writable: false);
-                            OnAudioReceived?.Invoke(payload);
+                            OnAudioReceived?.Invoke(result.AudioData);
                         }
                         else if (result.Reason == ResultReason.Canceled)
                         {
@@ -94,7 +79,7 @@ namespace Translator.Service
                 }
             }
         }
-       
+
         /// <summary>
         /// 这个方法应该是保存到一个队列中
         /// </summary>

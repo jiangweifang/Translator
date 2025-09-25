@@ -20,12 +20,12 @@ namespace Translator.Controllers
         private readonly AudioFormat _audioFormat;
         private readonly MiniAudioEngine _engine;
         private DeviceInfo? _device;
-        private readonly ConcurrentQueue<MemoryStream> _audioQueue;
+        private readonly ConcurrentQueue<byte[]> _audioQueue;
         private readonly ILogger<TranslationHub> _logger;
 
         public TranslationHub(IMemoryCache cache, ILogger<TranslationHub> logger, SynthesizerService synthesizer, TranslationService translation)
         {
-            _audioQueue = new ConcurrentQueue<MemoryStream>();
+            _audioQueue = new ConcurrentQueue<byte[]>();
             _cache = cache;
             _logger = logger;
             _synthesizer = synthesizer;
@@ -65,7 +65,7 @@ namespace Translator.Controllers
             _synthesizer.Start(synthConfig);
         }
 
-        private void Synthesizer_OnAudioReceived(MemoryStream obj)
+        private void Synthesizer_OnAudioReceived(byte[] obj)
         {
             _audioQueue.Enqueue(obj);
         }
@@ -79,10 +79,11 @@ namespace Translator.Controllers
         {
             while (!token.IsCancellationRequested)
             {
-                if (_audioQueue.TryDequeue(out MemoryStream? audio))
+                if (_audioQueue.TryDequeue(out byte[]? audio))
                 {
                     if (audio == null) continue;
-                    using var dataProvider = new StreamDataProvider(_engine, _audioFormat, audio);
+
+                    using var dataProvider = new RawDataProvider(audio, SampleFormat.S16, 16000, 1);
                     using var soundPlayer = new SoundPlayer(_engine, _audioFormat, dataProvider);
                     _logger.LogInformation("播放音频（队列消费）");
                 }
