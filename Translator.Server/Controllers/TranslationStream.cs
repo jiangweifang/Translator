@@ -28,12 +28,12 @@ namespace Translator.Controllers
             {
                 voiceName = "zh-CN-XiaoxiaoMultilingualNeural";
             }
-            _translator.OnRecognized += (lang, text) =>
+            _translator.OnRecognized += (sourceLang, transLang, text) =>
             {
                 Clients.Caller.SendAsync("Recognized", text);
                 _synthesizer.SendTranslation(text);
             };
-            _translator.OnRecognizing += (lang, text) =>
+            _translator.OnRecognizing += (sourceLang, transLang, text) =>
             {
                 Clients.Caller.SendAsync("Recognized", text);
             };
@@ -60,8 +60,8 @@ namespace Translator.Controllers
 
         protected override void Dispose(bool disposing)
         {
-            _translator.OnRecognized -= (lang, text) => { };
-            _translator.OnRecognizing -= (lang, text) => { };
+            _translator.OnRecognized -= (sourceLang, transLang, text) => { };
+            _translator.OnRecognizing -= (sourceLang, transLang, text) => { };
             _translator.Dispose();
             _synthesizer.Dispose();
             _logger.LogWarning("TranslationStream 已释放");
