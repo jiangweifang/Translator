@@ -20,20 +20,28 @@ namespace Translator.Service
             _config = config;
             _logger = logger;
         }
-
-        public async Task Start(string[] fromLang, string[] toLang)
+        /// <summary>
+        /// 指定目标语言开始翻译
+        /// </summary>
+        /// <param name="toLang">多个目标语言的原因是在初始化之后可以选择返回的语言类型</param>
+        /// <returns></returns>
+        public async Task Start(string[] toLang)
         {
             _stopTranslation = new();
-            SpeechTranslationConfig speechConfig = SpeechTranslationConfig.FromSubscription(_config.SubscriptionKey, _config.Region);
-            
+            //使用无源语言候选项的多语言语音翻译 [https://learn.microsoft.com/zh-cn/azure/ai-services/speech-service/how-to-translate-speech?tabs=terminal&pivots=programming-language-csharp#multi-lingual-speech-translation-without-source-language-candidates]
+            var v2EndpointInString = string.Format("wss://{0}.stt.speech.microsoft.com/speech/universal/v2", _config.Region);
+            var v2EndpointUrl = new Uri(v2EndpointInString);
+            var speechConfig = SpeechTranslationConfig.FromEndpoint(v2EndpointUrl, _config.SubscriptionKey);
+
             // Add the target languages you want to translate to
             foreach(var to in toLang)
             {
                 speechConfig.AddTargetLanguage(to);
             }
             speechConfig.SetProperty(PropertyId.Speech_SegmentationSilenceTimeoutMs, "200");
-            var autoDetectSourceLanguageConfig = AutoDetectSourceLanguageConfig.FromLanguages(fromLang);
-
+            //自动识别源语言
+            var autoDetectSourceLanguageConfig = AutoDetectSourceLanguageConfig.FromOpenRange();
+            //使用服务器的默认麦克风作为音频输入
             using var audioInput = AudioConfig.FromDefaultMicrophoneInput();
             using var translationRecognizer = new TranslationRecognizer(speechConfig, autoDetectSourceLanguageConfig, audioInput);
             // Subscribes to events.
@@ -54,6 +62,7 @@ namespace Translator.Service
                     _logger.LogInformation($"RECOGNIZED in 'zh-CN': Text={e.Result.Text}");
                     foreach (var element in e.Result.Translations)
                     {
+                        // 此处会收到多种语言的翻译结果，可以根据需要进行处理
                         _logger.LogInformation($"TRANSLATED into '{element.Key}': {element.Value}");
                         OnRecognized?.Invoke(element.Key, element.Value);
                     }

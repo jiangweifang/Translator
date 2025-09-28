@@ -1,13 +1,12 @@
 using Microsoft.CognitiveServices.Speech;
 using Microsoft.CognitiveServices.Speech.Audio;
 using System.Collections.Concurrent;
-using System.Data.Common;
 using Translator.Models.Configs;
 
 namespace Translator.Service
 {
     /// <summary>
-    /// 这是一个持续的识别服务
+    /// 这是一个持续的识别服务，这个会突然断掉最后的音频，不知道怎么解决
     /// </summary>
     public class SynthesizerStreamService: IDisposable
     {

@@ -4,6 +4,9 @@ using Translator.Service;
 
 namespace Translator.Controllers
 {
+    /// <summary>
+    /// 用流传输的方式进行翻译，这个会突然断掉最后的音频，不知道怎么解决
+    /// </summary>
     public class TranslationStream :Hub
     {
         private readonly IMemoryCache _cache;
@@ -36,7 +39,7 @@ namespace Translator.Controllers
             };
 
             var synthConfig = _synthesizer.Initialize(voiceName);
-            _ = _translator.Start(["zh-CN"], ["ja-JP"]);
+            _ = _translator.Start(["ja-JP"]);
             _ = _synthesizer.Start(synthConfig);
 
             return Task.CompletedTask;
