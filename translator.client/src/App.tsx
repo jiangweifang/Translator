@@ -16,7 +16,7 @@ export default class App extends Component<AppProps, AppState> {
     constructor(props: AppProps) {
         super(props);
         this.state = {
-            transText:"",
+            transText: "",
         }
         this.isRuning = false;
         const hubUrl = "http://localhost:5033/trans";
@@ -50,15 +50,19 @@ export default class App extends Component<AppProps, AppState> {
     }
     onReversal() {
         if (!this.isRuning) return;
-        this.hubConnection.invoke("Reversal","zh-CN");
+        this.hubConnection.invoke("Reversal", "zh-CN");
     }
 
     render() {
-        return (<>
+        return (<div className="main">
+            <div>
+                <div>选择语言</div>
+                <div>翻译语言</div>
+            </div>
+            <div>{this.state.transText}</div>
             <button onClick={this.onStart.bind(this)}>Start</button>
             <button onClick={this.onStop.bind(this)}>Stop</button>
             <button onClick={this.onReversal.bind(this)}>Reversal</button>
-            {this.state.transText}
-        </>);
+        </div>);
     }
 }
