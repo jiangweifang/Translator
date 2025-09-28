@@ -1,5 +1,5 @@
 这里需要有一个appsettings.json 才能启动
-
+```
 {
   "Logging": {
     "LogLevel": {
@@ -13,3 +13,4 @@
   },
   "AllowedHosts": "*"
 }
+```
