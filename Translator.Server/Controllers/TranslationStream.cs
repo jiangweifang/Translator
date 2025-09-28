@@ -32,23 +32,27 @@ namespace Translator.Controllers
             };
             _translator.OnRecognizing += (lang, text) =>
             {
-                Clients.Caller.SendAsync("Recognizing", text);
+                Clients.Caller.SendAsync("Recognized", text);
             };
 
-            var transConfig = _translator.Initialize(fromLang, toLang);
             var synthConfig = _synthesizer.Initialize(voiceName);
-
-            _ = _translator.Start(transConfig);
+            _ = _translator.Start(["zh-CN"], ["ja-JP"]);
             _ = _synthesizer.Start(synthConfig);
 
             return Task.CompletedTask;
         }
-       
+
+        public Task Stop()
+        {
+            Dispose(false);
+            return Task.CompletedTask;
+        }
+
 
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
             await base.OnDisconnectedAsync(exception);
-            Dispose(true);
+            Dispose(false);
         }
 
         protected override void Dispose(bool disposing)

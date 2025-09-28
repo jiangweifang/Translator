@@ -20,22 +20,22 @@ namespace Translator.Service
             _config = config;
             _logger = logger;
         }
-        public SpeechTranslationConfig Initialize(string fromLang, string toLang)
+
+        public async Task Start(string[] fromLang, string[] toLang)
         {
             _stopTranslation = new();
             SpeechTranslationConfig speechConfig = SpeechTranslationConfig.FromSubscription(_config.SubscriptionKey, _config.Region);
-            // Set the source language
-            speechConfig.SpeechRecognitionLanguage = fromLang;
+            
             // Add the target languages you want to translate to
-            speechConfig.AddTargetLanguage(toLang);
+            foreach(var to in toLang)
+            {
+                speechConfig.AddTargetLanguage(to);
+            }
             speechConfig.SetProperty(PropertyId.Speech_SegmentationSilenceTimeoutMs, "200");
-            return speechConfig;
-        }
+            var autoDetectSourceLanguageConfig = AutoDetectSourceLanguageConfig.FromLanguages(fromLang);
 
-        public async Task Start(SpeechTranslationConfig speechConfig)
-        {
             using var audioInput = AudioConfig.FromDefaultMicrophoneInput();
-            using var translationRecognizer = new TranslationRecognizer(speechConfig, audioInput);
+            using var translationRecognizer = new TranslationRecognizer(speechConfig, autoDetectSourceLanguageConfig, audioInput);
             // Subscribes to events.
             translationRecognizer.Recognizing += (s, e) =>
             {

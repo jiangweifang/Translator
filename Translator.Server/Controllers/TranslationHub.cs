@@ -1,16 +1,18 @@
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Caching.Memory;
 using System.Collections.Concurrent;
 using Translator.Service;
 
 namespace Translator.Controllers
 {
-    public class TranslationHub :  IDisposable
+    public class TranslationHub : Hub
     {
         private readonly IMemoryCache _cache;
         private readonly SynthesizerService _synthesizer;
         private readonly TranslationService _translator;
         private readonly ConcurrentQueue<byte[]> _audioQueue;
         private readonly ILogger<TranslationHub> _logger;
+        private string? _sessionId;
 
         public TranslationHub(IMemoryCache cache, ILogger<TranslationHub> logger, SynthesizerService synthesizer, TranslationService translation)
         {
@@ -21,43 +23,72 @@ namespace Translator.Controllers
             _translator = translation;
         }
 
-        public Task StartAsync(CancellationToken cancellationToken)
+        public Task Start(string fromLang, string toLang, string voiceName)
         {
-            //_ = Task.Run(() => ProcessQueueAsync(cancellationToken));
-            return Task.CompletedTask;
-        }
-
-        public Task StopAsync(CancellationToken cancellationToken)
-        {
-            return Task.CompletedTask;
-        }
-
-        public void Init(string fromLang, string toLang, string voiceName)
-        {
+            string cacheKey = $"transToLang::{_sessionId}";
+            _cache.Set(cacheKey, toLang);
+            if (string.IsNullOrEmpty(voiceName))
+            {
+                voiceName = "zh-CN-XiaoxiaoMultilingualNeural";
+            }
             _translator.OnRecognized += (lang, text) =>
             {
-                _synthesizer.SendTranslation(text);
+                var transLang = _cache.Get<string>(cacheKey);
+                if (transLang != null && lang.Contains(transLang, StringComparison.OrdinalIgnoreCase))
+                {
+                    Clients.Caller.SendAsync("Recognized", text);
+                    _synthesizer.SendTranslation(text);
+                }
             };
-            _synthesizer.OnAudioReceived += Synthesizer_OnAudioReceived;
-            var transConfig = _translator.Initialize(fromLang, toLang);
-            var synthConfig = _synthesizer.Initialize(toLang, voiceName);
+            _translator.OnRecognizing += (lang, text) =>
+            {
+                var transLang = _cache.Get<string>(cacheKey);
+                if (transLang != null && lang.Contains(transLang, StringComparison.OrdinalIgnoreCase))
+                {
+                    Clients.Caller.SendAsync("Recognized", text);
+                }
+            };
 
-            _ = _translator.Start(transConfig);
+            var synthConfig = _synthesizer.Initialize(voiceName);
+            _ = _translator.Start([fromLang, toLang], [fromLang, toLang]);
             _synthesizer.Start(synthConfig);
+
+            return Task.CompletedTask;
         }
 
-        private void Synthesizer_OnAudioReceived(byte[] obj)
+        public Task Reversal(string toLang)
         {
-            _audioQueue.Enqueue(obj);
+            string cacheKey = $"transToLang::{_sessionId}";
+            _cache.Set(cacheKey, toLang);
+            return Task.CompletedTask;
         }
 
-        public void Dispose()
+        public Task Stop()
         {
+            Dispose(false);
+            return Task.CompletedTask;
         }
 
-        private void ProcessQueueAsync(CancellationToken token)
+        public override Task OnConnectedAsync()
         {
-           
+            _sessionId = Context.ConnectionId;
+            return base.OnConnectedAsync();
+        }
+
+        public override async Task OnDisconnectedAsync(Exception? exception)
+        {
+            await base.OnDisconnectedAsync(exception);
+            Dispose(false);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            _translator.OnRecognized -= (lang, text) => { };
+            _translator.OnRecognizing -= (lang, text) => { };
+            _translator.Dispose();
+            _synthesizer.Dispose();
+            _logger.LogWarning("TranslationStream 已释放");
+            base.Dispose(disposing);
         }
     }
 }

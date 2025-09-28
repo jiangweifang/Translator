@@ -25,24 +25,21 @@ namespace Translator.Service
             _textQueue = new();
         }
 
-        public SpeechConfig Initialize(string toLang, string voiceName = "")
+        public SpeechConfig Initialize(string voiceName = "zh-CN-XiaoxiaoMultilingualNeural")
         {
             SpeechConfig speechConfig = SpeechConfig.FromSubscription(_config.SubscriptionKey, _config.Region);
             speechConfig.SetSpeechSynthesisOutputFormat(SpeechSynthesisOutputFormat.Raw16Khz16BitMonoPcm);
-            speechConfig.SpeechSynthesisLanguage = toLang;
+            //speechConfig.SpeechSynthesisLanguage = toLang;
             speechConfig.SpeechSynthesisVoiceName = voiceName;
             return speechConfig;
         }
 
         public void Start(SpeechConfig speechConfig)
         {
-            // 初始化 SDK synthesizer（不指定输出，让我们获取 AudioData）
+            // 初始化 SDK synthesizer
             _synthesizer = new SpeechSynthesizer(speechConfig, AudioConfig.FromDefaultSpeakerOutput());
             _connection = Connection.FromSpeechSynthesizer(_synthesizer);
             _connection.Open(true);
-
-            // 初始化 OpenAL 上下文
-            //InitOpenAl();
 
             _cts = new CancellationTokenSource();
             _ = Task.Run(() => ProcessQueueAsync(_cts.Token));
@@ -103,7 +100,6 @@ namespace Translator.Service
             _connection?.Dispose();
             _synthesizer?.Dispose();
             GC.SuppressFinalize(this);
-            //DisposeOpenAl();
         }
     }
 }

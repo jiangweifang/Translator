@@ -1,35 +1,64 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
+import React, { Component } from 'react';
+import { HubConnection, HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
 import './App.css'
 
-function App() {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+interface AppProps {
 }
 
-export default App
+interface AppState {
+    transText: string;
+}
+
+export default class App extends Component<AppProps, AppState> {
+
+    private hubConnection: HubConnection;
+    private isRuning: boolean;
+    constructor(props: AppProps) {
+        super(props);
+        this.state = {
+            transText:"",
+        }
+        this.isRuning = false;
+        const hubUrl = "http://localhost:5033/trans";
+        this.hubConnection = new HubConnectionBuilder().withUrl(hubUrl)
+            .configureLogging(LogLevel.Information)
+            .build();
+        this.hubConnection.on("recognized", this.onRecognized.bind(this))
+    }
+
+    componentDidMount() {
+        this.hubConnection.start()
+    }
+
+    componentWillUnmount() {
+        this.hubConnection.stop()
+    }
+
+    onRecognized(text: string) {
+        this.setState({ transText: text });
+    }
+
+    onStart() {
+        if (this.isRuning) return;
+        this.isRuning = true;
+        this.hubConnection.invoke("Start", "zh-CN", "ja-JP", "");
+    }
+    onStop() {
+        if (!this.isRuning) return;
+        this.isRuning = false;
+        this.hubConnection.invoke("Stop");
+    }
+    onReversal() {
+        if (!this.isRuning) return;
+        this.hubConnection.invoke("Reversal","zh-CN");
+    }
+
+    render() {
+        return (<>
+            <button onClick={this.onStart.bind(this)}>Start</button>
+            <button onClick={this.onStop.bind(this)}>Stop</button>
+            <button onClick={this.onReversal.bind(this)}>Reversal</button>
+            {this.state.transText}
+        </>);
+    }
+}
