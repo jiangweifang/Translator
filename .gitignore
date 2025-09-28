@@ -1,4 +1,6 @@
 /.vs
-/Translator/bin
-/Translator/obj
-*.json
+
+appsettings*.json
+
+**/bin
+**/obj
