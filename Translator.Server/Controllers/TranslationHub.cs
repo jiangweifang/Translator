@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.CognitiveServices.Speech;
 using Microsoft.Extensions.Caching.Memory;
 using Translator.Service;
 
@@ -29,31 +30,22 @@ namespace Translator.Controllers
         /// <returns></returns>
         public Task Start(string fromLang, string toLang, string voiceName)
         {
-            // 缓存目标语言
+            string[] langs = [fromLang, toLang];
+                // 缓存目标语言
             string cacheKey = $"transToLang::{_sessionId}";
             _cache.Set(cacheKey, toLang);
             if (string.IsNullOrEmpty(voiceName))
             {
                 voiceName = "zh-CN-XiaoxiaoMultilingualNeural";
             }
-            _translator.OnRecognized += (lang, text) =>
+            _translator.OnRecognized += (sourceLang, transLang, text) =>
             {
-                // 仅当识别语言包含目标语言时，才进行翻译和语音合成
-                var transLang = _cache.Get<string>(cacheKey);
-                // 这样可以挑选识别结果中指定的目标语言，进行翻译和语音合成
-                if (transLang != null && lang.Contains(transLang, StringComparison.OrdinalIgnoreCase))
-                {
-                    Clients.Caller.SendAsync("Recognized", text);
-                    _synthesizer.SendTranslation(text);
-                }
+                Clients.Caller.SendAsync("Recognized", text);
+                _synthesizer.SendTranslation(text);
             };
-            _translator.OnRecognizing += (lang, text) =>
+            _translator.OnRecognizing += (sourceLang, transLang, text) =>
             {
-                var transLang = _cache.Get<string>(cacheKey);
-                if (transLang != null && lang.Contains(transLang, StringComparison.OrdinalIgnoreCase))
-                {
-                    Clients.Caller.SendAsync("Recognized", text);
-                }
+                Clients.Caller.SendAsync("Recognized", text);
             };
 
             var synthConfig = _synthesizer.Initialize(voiceName);
@@ -94,8 +86,8 @@ namespace Translator.Controllers
 
         protected override void Dispose(bool disposing)
         {
-            _translator.OnRecognized -= (lang, text) => { };
-            _translator.OnRecognizing -= (lang, text) => { };
+            _translator.OnRecognized -= (sourceLang, transLang, text) => { };
+            _translator.OnRecognizing -= (sourceLang, transLang, text) => { };
             _translator.Dispose();
             _synthesizer.Dispose();
             _logger.LogWarning("TranslationStream 已释放");

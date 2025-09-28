@@ -12,8 +12,8 @@ namespace Translator.Service
 
         private TaskCompletionSource<int>? _stopTranslation;
 
-        public event Action<string, string>? OnRecognizing;
-        public event Action<string, string>? OnRecognized;
+        public event Action<string, string, string>? OnRecognizing;
+        public event Action<string, string, string>? OnRecognized;
 
         public TranslationService(AiSpeechConfig config, ILogger<TranslationService> logger)
         {
@@ -34,7 +34,7 @@ namespace Translator.Service
             var speechConfig = SpeechTranslationConfig.FromEndpoint(v2EndpointUrl, _config.SubscriptionKey);
 
             // Add the target languages you want to translate to
-            foreach(var to in toLang)
+            foreach (var to in toLang)
             {
                 speechConfig.AddTargetLanguage(to);
             }
@@ -47,24 +47,38 @@ namespace Translator.Service
             // Subscribes to events.
             translationRecognizer.Recognizing += (s, e) =>
             {
-                _logger.LogInformation($"RECOGNIZING in 'zh-CN': Text={e.Result.Text}");
+                // 获取自动检测到的源语言
+                var lidResult = e.Result.Properties.GetProperty(PropertyId.SpeechServiceConnection_AutoDetectSourceLanguageResult);
+                if(!speechConfig.TargetLanguages.Any(c=>c.Equals(lidResult, StringComparison.OrdinalIgnoreCase)))
+                {
+                    speechConfig.AddTargetLanguage(lidResult);
+                    _logger.LogInformation($"添加了一个新的语言: {lidResult}");
+                }
+                _logger.LogInformation($"RECOGNIZING in '{lidResult}': Text={e.Result.Text}");
                 foreach (var element in e.Result.Translations)
                 {
                     _logger.LogInformation($"TRANSLATING into '{element.Key}': {element.Value}");
-                    OnRecognizing?.Invoke(element.Key, element.Value);
+                    OnRecognizing?.Invoke(lidResult, element.Key, element.Value);
                 }
             };
 
             translationRecognizer.Recognized += (s, e) =>
             {
+                // 获取自动检测到的源语言
+                var lidResult = e.Result.Properties.GetProperty(PropertyId.SpeechServiceConnection_AutoDetectSourceLanguageResult);
+                if (!speechConfig.TargetLanguages.Any(c => c.Equals(lidResult, StringComparison.OrdinalIgnoreCase)))
+                {
+                    speechConfig.AddTargetLanguage(lidResult);
+                    _logger.LogInformation($"添加了一个新的语言: {lidResult}");
+                }
                 if (e.Result.Reason == ResultReason.TranslatedSpeech)
                 {
-                    _logger.LogInformation($"RECOGNIZED in 'zh-CN': Text={e.Result.Text}");
+                    _logger.LogInformation($"RECOGNIZED in '{lidResult}': Text={e.Result.Text}");
                     foreach (var element in e.Result.Translations)
                     {
                         // 此处会收到多种语言的翻译结果，可以根据需要进行处理
                         _logger.LogInformation($"TRANSLATED into '{element.Key}': {element.Value}");
-                        OnRecognized?.Invoke(element.Key, element.Value);
+                        OnRecognized?.Invoke(lidResult, element.Key, element.Value);
                     }
                 }
                 else if (e.Result.Reason == ResultReason.RecognizedSpeech)
